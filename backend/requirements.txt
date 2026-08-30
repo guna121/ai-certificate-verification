@@ -1,0 +1,12 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+PyJWT==2.9.0
+pillow==10.4.0
+opencv-python-headless==4.10.0.84
+pytesseract==0.3.13
+pydantic==2.9.2
+
+# Optional: only needed if you want to verify PDF certificates.
+# Also requires the "poppler-utils" system package (see README).
+pdf2image==1.17.0

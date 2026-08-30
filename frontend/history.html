@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verification History — CertVerify</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brand-icon">🎓</div> CertVerify</div>
+    <a href="dashboard.html" class="sidebar-link" data-key="dashboard"><span class="ico">🏠</span> Dashboard</a>
+    <a href="verify.html" class="sidebar-link" data-key="verify"><span class="ico">📤</span> Upload &amp; Verify</a>
+    <a href="recruiter.html" class="sidebar-link" data-key="recruiter" data-roles="recruiter,admin"><span class="ico">🧑‍💼</span> Recruiter Check</a>
+    <a href="history.html" class="sidebar-link" data-key="history"><span class="ico">🕘</span> History</a>
+    <a href="admin.html" class="sidebar-link" data-key="admin" data-roles="admin"><span class="ico">🛡️</span> Admin Panel</a>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar" id="sidebar-avatar"></div>
+        <div class="user-meta">
+          <div class="name" id="sidebar-user-name"></div>
+          <div class="role" id="sidebar-user-role"></div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-block" id="logout-btn" style="margin-top:8px;">Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="topbar">
+      <button class="menu-toggle" id="menu-toggle">☰</button>
+      <div>
+        <h1>Verification History</h1>
+        <p class="sub" id="sub-text">All certificates you've verified.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap;">
+        <button class="btn btn-sm btn-outline filter-btn active" data-filter="all">All</button>
+        <button class="btn btn-sm btn-outline filter-btn" data-filter="verified">✅ Verified</button>
+        <button class="btn btn-sm btn-outline filter-btn" data-filter="needs_review">⚠️ Needs Review</button>
+        <button class="btn btn-sm btn-outline filter-btn" data-filter="suspicious">❌ Suspicious</button>
+        <button class="btn btn-sm btn-outline filter-btn" data-filter="revoked">🚫 Revoked</button>
+      </div>
+      <div id="history-wrap"><div class="empty-state"><div class="ico">⏳</div>Loading...</div></div>
+    </div>
+  </main>
+</div>
+
+<script src="script.js"></script>
+<script>
+  requireAuth();
+  initSidebar("history");
+  if (getRole() === "admin") {
+    document.getElementById("sub-text").textContent = "All verification activity across the platform.";
+  }
+
+  let allHistory = [];
+  let currentFilter = "all";
+
+  async function load() {
+    try {
+      allHistory = await apiFetch("/api/history");
+      render();
+    } catch (err) {
+      document.getElementById("history-wrap").innerHTML = `<div class="empty-state">⚠️ ${err.message}</div>`;
+    }
+  }
+
+  function render() {
+    const wrap = document.getElementById("history-wrap");
+    const items = currentFilter === "all" ? allHistory : allHistory.filter((h) => h.result === currentFilter);
+
+    if (items.length === 0) {
+      wrap.innerHTML = `<div class="empty-state"><div class="ico">📄</div>No records found.</div>`;
+      return;
+    }
+
+    const rows = items
+      .map((h) => {
+        const meta = RESULT_META[h.result];
+        return `<tr>
+          <td>${h.uploaded_filename}</td>
+          <td>${h.extracted_certificate_id || "—"}</td>
+          <td><span class="badge ${h.result}">${meta.emoji} ${meta.label}</span></td>
+          <td>${h.risk_score}/100</td>
+          <td style="max-width:320px; color:var(--text-muted); font-size:0.82rem;">${(h.reasons || "").split(" | ")[0] || "—"}</td>
+          <td>${formatDate(h.created_at)}</td>
+        </tr>`;
+      })
+      .join("");
+
+    wrap.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>File</th><th>Certificate ID</th><th>Result</th><th>Risk</th><th>Top Reason</th><th>Date</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  }
+
+  document.querySelectorAll(".filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentFilter = btn.dataset.filter;
+      render();
+    });
+  });
+
+  load();
+</script>
+<style>
+  .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+</style>
+</body>
+</html>

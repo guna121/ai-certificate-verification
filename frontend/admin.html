@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Panel — CertVerify</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brand-icon">🎓</div> CertVerify</div>
+    <a href="dashboard.html" class="sidebar-link" data-key="dashboard"><span class="ico">🏠</span> Dashboard</a>
+    <a href="verify.html" class="sidebar-link" data-key="verify"><span class="ico">📤</span> Upload &amp; Verify</a>
+    <a href="recruiter.html" class="sidebar-link" data-key="recruiter" data-roles="recruiter,admin"><span class="ico">🧑‍💼</span> Recruiter Check</a>
+    <a href="history.html" class="sidebar-link" data-key="history"><span class="ico">🕘</span> History</a>
+    <a href="admin.html" class="sidebar-link" data-key="admin" data-roles="admin"><span class="ico">🛡️</span> Admin Panel</a>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar" id="sidebar-avatar"></div>
+        <div class="user-meta">
+          <div class="name" id="sidebar-user-name"></div>
+          <div class="role" id="sidebar-user-role"></div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-block" id="logout-btn" style="margin-top:8px;">Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="topbar">
+      <button class="menu-toggle" id="menu-toggle">☰</button>
+      <div>
+        <h1>Admin Panel</h1>
+        <p class="sub">Manage the registry of genuine certificates and monitor platform activity.</p>
+      </div>
+    </div>
+
+    <div class="stat-grid" id="stat-grid">
+      <div class="stat-card"><div class="label">Total Users</div><div class="value blue" id="s-users">—</div></div>
+      <div class="stat-card"><div class="label">Registered Certificates</div><div class="value blue" id="s-certs">—</div></div>
+      <div class="stat-card"><div class="label">Total Verifications Run</div><div class="value blue" id="s-verifs">—</div></div>
+      <div class="stat-card"><div class="label">Suspicious Detected</div><div class="value red" id="s-suspicious">—</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Register a genuine certificate</h3>
+      <p class="sub" style="margin-bottom:16px;">Add certificates your institution has issued so they can be matched during verification.</p>
+      <div id="reg-alert" class="alert alert-error"></div>
+      <div id="reg-success" class="alert alert-success"></div>
+      <form id="reg-form">
+        <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); margin-bottom:0;">
+          <div class="form-group"><label>Certificate ID</label><input class="form-control" id="f-cert-id" required placeholder="CERT-2024-0002" /></div>
+          <div class="form-group"><label>Student Name</label><input class="form-control" id="f-student" required placeholder="Ananya Sharma" /></div>
+          <div class="form-group"><label>Course</label><input class="form-control" id="f-course" placeholder="B.Sc Mathematics" /></div>
+          <div class="form-group"><label>Institution</label><input class="form-control" id="f-institution" required placeholder="Anna University" /></div>
+          <div class="form-group"><label>Issue Date</label><input class="form-control" type="date" id="f-date" /></div>
+          <div class="form-group"><label>QR Data (optional, defaults to Cert ID)</label><input class="form-control" id="f-qr" placeholder="CERT-2024-0002" /></div>
+        </div>
+        <button class="btn btn-primary" id="reg-btn" type="submit" style="margin-top:10px;">➕ Register Certificate</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Certificate Registry</h3>
+      <div id="cert-wrap"><div class="empty-state"><div class="ico">⏳</div>Loading...</div></div>
+    </div>
+  </main>
+</div>
+
+<script src="script.js"></script>
+<script>
+  requireAuth();
+  initSidebar("admin");
+  if (getRole() !== "admin") {
+    window.location.href = "dashboard.html";
+  }
+
+  async function loadStats() {
+    try {
+      const stats = await apiFetch("/api/admin/stats");
+      document.getElementById("s-users").textContent = stats.total_users;
+      document.getElementById("s-certs").textContent = stats.total_certificates;
+      document.getElementById("s-verifs").textContent = stats.total_verifications;
+      const bad = (stats.results_breakdown.suspicious || 0) + (stats.results_breakdown.revoked || 0);
+      document.getElementById("s-suspicious").textContent = bad;
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function loadCertificates() {
+    const wrap = document.getElementById("cert-wrap");
+    try {
+      const certs = await apiFetch("/api/certificates");
+      if (certs.length === 0) {
+        wrap.innerHTML = `<div class="empty-state"><div class="ico">🗄️</div>No certificates registered yet.</div>`;
+        return;
+      }
+      const rows = certs
+        .map(
+          (c) => `<tr>
+            <td><strong>${c.certificate_id}</strong></td>
+            <td>${c.student_name}</td>
+            <td>${c.course || "—"}</td>
+            <td>${c.institution_name || "—"}</td>
+            <td><span class="badge ${c.status === 'revoked' ? 'revoked' : 'active'}">${c.status}</span></td>
+            <td>${
+              c.status === "active"
+                ? `<button class="btn btn-sm btn-danger" onclick="revoke(${c.id})">Revoke</button>`
+                : "—"
+            }</td>
+          </tr>`
+        )
+        .join("");
+      wrap.innerHTML = `<div class="table-wrap"><table>
+        <thead><tr><th>Cert ID</th><th>Student</th><th>Course</th><th>Institution</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    } catch (err) {
+      wrap.innerHTML = `<div class="empty-state">⚠️ ${err.message}</div>`;
+    }
+  }
+
+  async function revoke(id) {
+    if (!confirm("Revoke this certificate? This cannot be undone.")) return;
+    try {
+      await apiFetch(`/api/certificates/${id}/revoke`, { method: "POST" });
+      loadCertificates();
+      loadStats();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  document.getElementById("reg-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideAlert("reg-alert");
+    hideAlert("reg-success");
+    const btn = document.getElementById("reg-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner dark"></span> Registering...';
+
+    try {
+      await apiFetch("/api/certificates", {
+        method: "POST",
+        body: JSON.stringify({
+          certificate_id: document.getElementById("f-cert-id").value.trim(),
+          student_name: document.getElementById("f-student").value.trim(),
+          course: document.getElementById("f-course").value.trim() || null,
+          institution_name: document.getElementById("f-institution").value.trim(),
+          issue_date: document.getElementById("f-date").value || null,
+          qr_data: document.getElementById("f-qr").value.trim() || null,
+        }),
+      });
+      showAlert("reg-success", "Certificate registered successfully.", "success");
+      document.getElementById("reg-form").reset();
+      loadCertificates();
+      loadStats();
+    } catch (err) {
+      showAlert("reg-alert", err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "➕ Register Certificate";
+    }
+  });
+
+  loadStats();
+  loadCertificates();
+</script>
+</body>
+</html>

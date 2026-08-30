@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign up — CertVerify</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="brand"><div class="brand-icon">🎓</div> CertVerify</div>
+    <h2>Create your account</h2>
+    <p class="auth-sub">Start verifying certificates in minutes</p>
+
+    <div id="alert-box" class="alert alert-error"></div>
+
+    <form id="signup-form">
+      <div class="form-group">
+        <label>I am a...</label>
+        <div class="role-select">
+          <label><input type="radio" name="role" value="student" checked /><span>🎓 Student</span></label>
+          <label><input type="radio" name="role" value="recruiter" /><span>🧑‍💼 Recruiter</span></label>
+          <label><input type="radio" name="role" value="admin" /><span>🏛️ Admin</span></label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="full_name">Full name</label>
+        <input class="form-control" type="text" id="full_name" required placeholder="Jane Doe" />
+      </div>
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <input class="form-control" type="email" id="email" required placeholder="you@example.com" />
+      </div>
+      <div class="form-group" id="institution-group">
+        <label for="institution_name">Institution / Company name</label>
+        <input class="form-control" type="text" id="institution_name" placeholder="Anna University" />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input class="form-control" type="password" id="password" required minlength="6" placeholder="At least 6 characters" />
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Create account</button>
+    </form>
+
+    <p class="auth-switch">Already have an account? <a href="login.html">Log in</a></p>
+  </div>
+</div>
+
+<script src="script.js"></script>
+<script>
+  document.getElementById("signup-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideAlert("alert-box");
+
+    const btn = document.getElementById("submit-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Creating account...';
+
+    const role = document.querySelector('input[name="role"]:checked').value;
+
+    try {
+      const data = await apiFetch("/api/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({
+          full_name: document.getElementById("full_name").value.trim(),
+          email: document.getElementById("email").value.trim(),
+          password: document.getElementById("password").value,
+          role,
+          institution_name: document.getElementById("institution_name").value.trim() || null,
+        }),
+      });
+      saveAuth(data);
+      window.location.href = "dashboard.html";
+    } catch (err) {
+      showAlert("alert-box", err.message);
+      btn.disabled = false;
+      btn.textContent = "Create account";
+    }
+  });
+</script>
+</body>
+</html>

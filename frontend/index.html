@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CertVerify — AI Certificate Verification</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="brand"><div class="brand-icon">🎓</div> CertVerify</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how">How it works</a>
+    <a href="verify.html">Verify a certificate</a>
+  </div>
+  <div class="nav-actions">
+    <a href="login.html" class="btn btn-ghost">Log in</a>
+    <a href="signup.html" class="btn btn-primary">Sign up free</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <span class="pill">🤖 AI-Powered OCR Verification</span>
+  <h1>Verify certificates in <span>seconds</span>, not days</h1>
+  <p>
+    CertVerify helps colleges and companies instantly check whether an academic
+    or professional certificate is genuine, tampered with, or revoked — using
+    OCR, QR code analysis, and cryptographic hashing.
+  </p>
+  <div class="hero-actions">
+    <a href="signup.html" class="btn btn-primary">Get started free</a>
+    <a href="verify.html" class="btn btn-outline">Try a verification</a>
+  </div>
+</header>
+
+<section class="section" id="how">
+  <h2 class="section-title">How verification works</h2>
+  <p class="section-sub">Every uploaded certificate passes through a 7-step automated pipeline.</p>
+  <div class="steps-flow">
+    <span class="step-chip">📤 Upload Certificate</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip">🔎 OCR Extraction</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip">🆔 Read Certificate ID</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip">📱 Check QR Code</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip">🔐 SHA-256 Hash</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip">🗄️ Database Match</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip">📊 Risk Score & Result</span>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <h2 class="section-title">Built for every role</h2>
+  <p class="section-sub">One platform for students, recruiters, and institution admins.</p>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="icon">🎓</div>
+      <h3>Students</h3>
+      <p>Upload and manage your certificates, and share verified proof with recruiters instantly.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🧑‍💼</div>
+      <h3>Recruiters</h3>
+      <p>Verify a candidate's certificate in seconds and see a clear, explained risk score.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🏛️</div>
+      <h3>Institutions / Admins</h3>
+      <p>Register genuine certificates, revoke fraudulent ones, and monitor verification activity.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🔐</div>
+      <h3>Tamper Detection</h3>
+      <p>SHA-256 file hashing detects even small edits to a previously verified document.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📱</div>
+      <h3>QR Code Cross-Check</h3>
+      <p>Embedded QR codes are decoded and cross-verified against the certificate ID.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📈</div>
+      <h3>Explainable Risk Score</h3>
+      <p>Every result comes with a 0–100 risk score and plain-language reasons behind it.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  Built as a college project · CertVerify © 2026 · FastAPI + OpenCV + Tesseract
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verify Certificate — CertVerify</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brand-icon">🎓</div> CertVerify</div>
+    <a href="dashboard.html" class="sidebar-link" data-key="dashboard"><span class="ico">🏠</span> Dashboard</a>
+    <a href="verify.html" class="sidebar-link" data-key="verify"><span class="ico">📤</span> Upload &amp; Verify</a>
+    <a href="recruiter.html" class="sidebar-link" data-key="recruiter" data-roles="recruiter,admin"><span class="ico">🧑‍💼</span> Recruiter Check</a>
+    <a href="history.html" class="sidebar-link" data-key="history"><span class="ico">🕘</span> History</a>
+    <a href="admin.html" class="sidebar-link" data-key="admin" data-roles="admin"><span class="ico">🛡️</span> Admin Panel</a>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar" id="sidebar-avatar"></div>
+        <div class="user-meta">
+          <div class="name" id="sidebar-user-name"></div>
+          <div class="role" id="sidebar-user-role"></div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-block" id="logout-btn" style="margin-top:8px;">Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="topbar">
+      <button class="menu-toggle" id="menu-toggle">☰</button>
+      <div>
+        <h1>Upload &amp; Verify Certificate</h1>
+        <p class="sub">Upload a PDF, JPG, or PNG — our AI pipeline checks it automatically.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>1. Upload document</h3>
+      <form id="verify-form">
+        <div class="dropzone" id="dropzone">
+          <div class="ico">📄</div>
+          <div><strong>Click to browse</strong> or drag &amp; drop a certificate</div>
+          <div class="hint">Supports PDF, JPG, PNG · Max 15MB</div>
+          <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png" />
+        </div>
+        <div id="file-chip-wrap"></div>
+        <div id="alert-box" class="alert alert-error" style="margin-top:16px;"></div>
+        <button type="submit" class="btn btn-primary" id="submit-btn" style="margin-top:18px;" disabled>
+          🔍 Run AI Verification
+        </button>
+      </form>
+    </div>
+
+    <div id="pipeline-wrap"></div>
+    <div id="result-wrap"></div>
+  </main>
+</div>
+
+<script src="script.js"></script>
+<script>
+  requireAuth();
+  initSidebar("verify");
+
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("file-input");
+  const submitBtn = document.getElementById("submit-btn");
+  const chipWrap = document.getElementById("file-chip-wrap");
+  let selectedFile = null;
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+    if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) setFile(fileInput.files[0]);
+  });
+
+  function setFile(file) {
+    selectedFile = file;
+    chipWrap.innerHTML = `<div class="file-chip">📎 ${file.name} (${(file.size / 1024).toFixed(0)} KB)</div>`;
+    submitBtn.disabled = false;
+  }
+
+  document.getElementById("verify-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+    hideAlert("alert-box");
+    document.getElementById("result-wrap").innerHTML = "";
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> Analyzing certificate...';
+    document.getElementById("pipeline-wrap").innerHTML = `
+      <div class="card">
+        <h3>2. AI pipeline in progress</h3>
+        <div class="steps-flow">
+          <span class="step-chip">🔎 OCR</span><span class="step-arrow">→</span>
+          <span class="step-chip">🆔 Certificate ID</span><span class="step-arrow">→</span>
+          <span class="step-chip">📱 QR Code</span><span class="step-arrow">→</span>
+          <span class="step-chip">🔐 SHA-256</span><span class="step-arrow">→</span>
+          <span class="step-chip">🗄️ DB Match</span><span class="step-arrow">→</span>
+          <span class="step-chip">📊 Risk Score</span>
+        </div>
+      </div>`;
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const result = await apiFetch("/api/verify", { method: "POST", body: formData });
+      renderResult(result);
+    } catch (err) {
+      showAlert("alert-box", err.message);
+      document.getElementById("pipeline-wrap").innerHTML = "";
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "🔍 Run AI Verification";
+    }
+  });
+
+  function renderResult(result) {
+    document.getElementById("pipeline-wrap").innerHTML = "";
+    const meta = RESULT_META[result.result];
+
+    const reasonsHtml = result.reasons.map((r) => `<li>${r}</li>`).join("");
+
+    const certInfo = result.certificate
+      ? `<div class="card">
+           <h3>Matched Certificate Record</h3>
+           <table style="width:100%; font-size:0.9rem;">
+             <tr><td style="padding:6px 0; color:var(--text-muted);">Certificate ID</td><td><strong>${result.certificate.certificate_id}</strong></td></tr>
+             <tr><td style="padding:6px 0; color:var(--text-muted);">Student Name</td><td>${result.certificate.student_name}</td></tr>
+             <tr><td style="padding:6px 0; color:var(--text-muted);">Course</td><td>${result.certificate.course || "—"}</td></tr>
+             <tr><td style="padding:6px 0; color:var(--text-muted);">Institution</td><td>${result.certificate.institution_name || "—"}</td></tr>
+             <tr><td style="padding:6px 0; color:var(--text-muted);">Issue Date</td><td>${result.certificate.issue_date || "—"}</td></tr>
+             <tr><td style="padding:6px 0; color:var(--text-muted);">Status</td><td><span class="badge ${result.certificate.status === 'revoked' ? 'revoked' : 'active'}">${result.certificate.status}</span></td></tr>
+           </table>
+         </div>`
+      : "";
+
+    document.getElementById("result-wrap").innerHTML = `
+      <div class="result-banner ${result.result}">
+        <div class="emoji">${meta.emoji}</div>
+        <div>
+          <div class="label">${meta.label}</div>
+          <div class="desc">${meta.desc}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Risk Score: ${result.risk_score} / 100</h3>
+        <div class="risk-meter">
+          <div class="track"><div class="fill" style="width:${result.risk_score}%; background:${meta.color};"></div></div>
+          <div class="labels"><span>0 · Safe</span><span>50 · Review</span><span>100 · High Risk</span></div>
+        </div>
+        <table style="width:100%; font-size:0.88rem; margin-top:6px;">
+          <tr><td style="padding:5px 0; color:var(--text-muted); width:220px;">Extracted Certificate ID</td><td>${result.extracted_certificate_id || "Not detected"}</td></tr>
+          <tr><td style="padding:5px 0; color:var(--text-muted);">Database Match</td><td>${result.matched ? "Yes" : "No"}</td></tr>
+          <tr><td style="padding:5px 0; color:var(--text-muted);">QR Code Found</td><td>${result.qr_found ? "Yes" : "No"}</td></tr>
+          <tr><td style="padding:5px 0; color:var(--text-muted);">QR Code Matches ID</td><td>${result.qr_matched ? "Yes" : "No"}</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Why this score?</h3>
+        <ul class="reason-list">${reasonsHtml}</ul>
+      </div>
+
+      ${certInfo}
+    `;
+  }
+</script>
+</body>
+</html>

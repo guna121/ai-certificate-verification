@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Log in — CertVerify</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="brand"><div class="brand-icon">🎓</div> CertVerify</div>
+    <h2>Welcome back</h2>
+    <p class="auth-sub">Log in to verify and manage certificates</p>
+
+    <div id="alert-box" class="alert alert-error"></div>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <input class="form-control" type="email" id="email" required placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input class="form-control" type="password" id="password" required placeholder="••••••••" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Log in</button>
+    </form>
+
+    <p class="auth-switch">Don't have an account? <a href="signup.html">Sign up</a></p>
+    <p class="auth-switch"><a href="index.html">← Back to home</a></p>
+  </div>
+</div>
+
+<script src="script.js"></script>
+<script>
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideAlert("alert-box");
+
+    const btn = document.getElementById("submit-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Logging in...';
+
+    try {
+      const data = await apiFetch("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: document.getElementById("email").value.trim(),
+          password: document.getElementById("password").value,
+        }),
+      });
+      saveAuth(data);
+      window.location.href = "dashboard.html";
+    } catch (err) {
+      showAlert("alert-box", err.message);
+      btn.disabled = false;
+      btn.textContent = "Log in";
+    }
+  });
+</script>
+</body>
+</html>

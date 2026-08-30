@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Recruiter Verification — CertVerify</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brand-icon">🎓</div> CertVerify</div>
+    <a href="dashboard.html" class="sidebar-link" data-key="dashboard"><span class="ico">🏠</span> Dashboard</a>
+    <a href="verify.html" class="sidebar-link" data-key="verify"><span class="ico">📤</span> Upload &amp; Verify</a>
+    <a href="recruiter.html" class="sidebar-link" data-key="recruiter" data-roles="recruiter,admin"><span class="ico">🧑‍💼</span> Recruiter Check</a>
+    <a href="history.html" class="sidebar-link" data-key="history"><span class="ico">🕘</span> History</a>
+    <a href="admin.html" class="sidebar-link" data-key="admin" data-roles="admin"><span class="ico">🛡️</span> Admin Panel</a>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar" id="sidebar-avatar"></div>
+        <div class="user-meta">
+          <div class="name" id="sidebar-user-name"></div>
+          <div class="role" id="sidebar-user-role"></div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-block" id="logout-btn" style="margin-top:8px;">Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="topbar">
+      <button class="menu-toggle" id="menu-toggle">☰</button>
+      <div>
+        <h1>Recruiter Certificate Check</h1>
+        <p class="sub">Screening a candidate? Upload the certificate they provided to check authenticity before you decide.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Candidate details (optional, for your own reference)</h3>
+      <div class="form-group">
+        <label for="candidate_name">Candidate name</label>
+        <input class="form-control" type="text" id="candidate_name" placeholder="e.g. Ramesh Kumar" />
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Upload candidate's certificate</h3>
+      <form id="verify-form">
+        <div class="dropzone" id="dropzone">
+          <div class="ico">📄</div>
+          <div><strong>Click to browse</strong> or drag &amp; drop a certificate</div>
+          <div class="hint">Supports PDF, JPG, PNG · Max 15MB</div>
+          <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png" />
+        </div>
+        <div id="file-chip-wrap"></div>
+        <div id="alert-box" class="alert alert-error" style="margin-top:16px;"></div>
+        <button type="submit" class="btn btn-primary" id="submit-btn" style="margin-top:18px;" disabled>
+          🔍 Verify Candidate's Certificate
+        </button>
+      </form>
+    </div>
+
+    <div id="result-wrap"></div>
+  </main>
+</div>
+
+<script src="script.js"></script>
+<script>
+  requireAuth();
+  initSidebar("recruiter");
+
+  if (getRole() !== "recruiter" && getRole() !== "admin") {
+    window.location.href = "dashboard.html";
+  }
+
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("file-input");
+  const submitBtn = document.getElementById("submit-btn");
+  const chipWrap = document.getElementById("file-chip-wrap");
+  let selectedFile = null;
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+    if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", () => { if (fileInput.files.length) setFile(fileInput.files[0]); });
+
+  function setFile(file) {
+    selectedFile = file;
+    chipWrap.innerHTML = `<div class="file-chip">📎 ${file.name} (${(file.size / 1024).toFixed(0)} KB)</div>`;
+    submitBtn.disabled = false;
+  }
+
+  document.getElementById("verify-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+    hideAlert("alert-box");
+    document.getElementById("result-wrap").innerHTML = "";
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> Checking...';
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const result = await apiFetch("/api/verify", { method: "POST", body: formData });
+      renderResult(result);
+    } catch (err) {
+      showAlert("alert-box", err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "🔍 Verify Candidate's Certificate";
+    }
+  });
+
+  function renderResult(result) {
+    const meta = RESULT_META[result.result];
+    const candidate = document.getElementById("candidate_name").value.trim();
+    const reasonsHtml = result.reasons.map((r) => `<li>${r}</li>`).join("");
+
+    let hireNote = "";
+    if (result.result === "verified") hireNote = "This certificate appears genuine — safe to proceed with your hiring process.";
+    else if (result.result === "needs_review") hireNote = "Some checks were inconclusive. Consider requesting the original document or contacting the institution.";
+    else if (result.result === "suspicious") hireNote = "This certificate shows strong signs of being fraudulent. Proceed with caution.";
+    else hireNote = "This certificate has been revoked by the issuing institution — do not accept it as valid.";
+
+    document.getElementById("result-wrap").innerHTML = `
+      <div class="result-banner ${result.result}">
+        <div class="emoji">${meta.emoji}</div>
+        <div>
+          <div class="label">${meta.label}${candidate ? " — " + candidate : ""}</div>
+          <div class="desc">${hireNote}</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Risk Score: ${result.risk_score} / 100</h3>
+        <div class="risk-meter">
+          <div class="track"><div class="fill" style="width:${result.risk_score}%; background:${meta.color};"></div></div>
+          <div class="labels"><span>0 · Safe</span><span>50 · Review</span><span>100 · High Risk</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Why this score?</h3>
+        <ul class="reason-list">${reasonsHtml}</ul>
+      </div>
+    `;
+  }
+</script>
+</body>
+</html>
