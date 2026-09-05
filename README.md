@@ -77,7 +77,7 @@ PDF uploads will show a friendly error asking you to install it.
 
 ```bash
 cd certificate-verification/backend
-python3 -m venv venv
+c
 
 # Activate the virtual environment:
 source venv/bin/activate        # macOS/Linux
